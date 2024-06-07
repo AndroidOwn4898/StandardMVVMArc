@@ -70,5 +70,18 @@ object Repository {
                 ApiClient.service.getCategory(categoryType, provinceId, moduleId).getResult()
             }
         }
+        
+   /*
+
+     fun getCategoryList(categoryType : String, provinceId : String, moduleId : String) = with(Repository) {
+        getCategory(categoryType,provinceId,moduleId)
+    }
+
+    fun addOwner(request: ArrayMap<String, Any>) = with(Repository) {
+        addOwnerProfile(request)
+    }
+
+    */
+
 }
 
