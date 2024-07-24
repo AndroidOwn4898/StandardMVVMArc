@@ -1,0 +1,90 @@
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+            request["Profile[profile_study_continue]"] = isStudent
+            request["Profile[profile_study_complete]"] = binding.txtEducationDate.text.toString()
+
+
+        viewModel.value.addStaffOwnerProfile(request.toArrayMapOfValue())
+            .observe(this@AddProfileActivity) {
+                when (it?.state) {
+
+                    Resource.State.LOADING, Resource.State.LOADING_MORE -> {
+                        ProgressUtils.showProgressDialog(this@AddProfileActivity)
+                    }
+
+                    Resource.State.ERROR -> {
+                        if (it.errorData?.status_code == 500) {
+                            showError(binding.root, getString(R.string.error_message_500))
+                        }
+                        ProgressUtils.hideProgressDialog()
+                    }
+
+                    Resource.State.NONE -> ProgressUtils.hideProgressDialog()
+
+                    Resource.State.SUCCESS -> {
+                        ProgressUtils.hideProgressDialog()
+                        when (it.data?.result) {
+                            AppConstant.IS_VALID -> {
+                                showGeneralMessage(binding.root, "${it.data?.message}")
+
+                                it.data?.also { data ->
+                                    if (data.isValid(this@AddProfileActivity)) {
+                                        getProfileAPI()
+                                    }
+                                }
+                            }
+
+                            else -> {
+                                showGeneralMessage(binding.root, "${it.data?.message}")
+                            }
+                        }
+                    }
+
+                    else -> {}
+                }
+            }
+    }
+
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------
+
+ private fun getProfileAPI() {
+        viewModel.value.getStaffOwnerProfileList().observe(this@AddProfileActivity) { it ->
+            when (it?.state) {
+                Resource.State.LOADING, Resource.State.LOADING_MORE -> {
+                    ProgressUtils.showProgressDialog(this@AddProfileActivity)
+                }
+
+                Resource.State.ERROR -> {
+                    if (it.errorData?.status_code == 500) {
+                        showError(binding.root, getString(R.string.error_message_500))
+                    }
+                    ProgressUtils.hideProgressDialog()
+                }
+
+                Resource.State.NONE -> ProgressUtils.hideProgressDialog()
+
+                Resource.State.SUCCESS -> {
+                    ProgressUtils.hideProgressDialog()
+                    when (it.data?.result) {
+                        AppConstant.IS_VALID -> {
+                            showGeneralMessage(binding.root, "${it.data?.message}")
+
+                            it.data?.data?.list?.forEach { it1 ->
+                                startDocumentsActivity(it1)
+                            }
+                        }
+
+                        else -> {
+                            showGeneralMessage(binding.root, "${it.data?.message}")
+                        }
+                    }
+                }
+
+                else -> {}
+            }
+        }
+
+    }
+
+
+
