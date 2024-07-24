@@ -1,0 +1,58 @@
+object AppAlert {
+
+
+fun showSuccess(view: View?, message: String): Snackbar {
+
+    val snackbar = view?.let { Snackbar.make(it, message, Snackbar.LENGTH_LONG) }
+    val snackBarView = snackbar?.view
+    snackBarView?.setBackgroundColor(ContextCompat.getColor(view.context, R.color.new_red))
+    val tv =
+        snackbar?.view?.findViewById(com.google.android.material.R.id.snackbar_text) as TextView
+    tv.maxLines = 5
+    val font = ResourcesCompat.getFont(view.context, R.font.helvetica_medium)
+    tv.typeface = font
+    //tv.textSize = view.resources.getDimension(R.dimen._12ssp)
+    tv.setTextSize(
+        TypedValue.COMPLEX_UNIT_SP,
+        13F
+    )
+    snackbar.show()
+    return snackbar
+}
+
+fun showGeneralMessage(view: View?, message: String): Snackbar {
+    var returnSnackBar: Snackbar? = null
+
+    view ?: returnSnackBar
+    returnSnackBar = view?.let { Snackbar.make(it, message, Snackbar.LENGTH_LONG) }
+    val snackBarView = returnSnackBar?.view
+    view?.context?.let { ContextCompat.getColor(it, R.color.new_red) }
+        ?.let { snackBarView?.setBackgroundColor(it) }
+    val tv =
+        returnSnackBar?.view?.findViewById(com.google.android.material.R.id.snackbar_text) as TextView
+    tv.maxLines = 5
+    val font = view?.context?.let { ResourcesCompat.getFont(it, R.font.helvetica_medium) }
+    tv.typeface = font
+    //tv.textSize = view.resources.getDimension(R.dimen._12ssp)
+    tv.setTextSize(
+        TypedValue.COMPLEX_UNIT_SP,
+        13F
+    )
+    returnSnackBar.show()
+    return returnSnackBar
+}
+
+
+fun Context.showErrorAction(view: View?, message: String) {
+    view ?: return
+    val snackbar =
+        Snackbar.make(view, message, Snackbar.LENGTH_INDEFINITE).setAction(R.string.ok) { }
+    val snackBarView = snackbar.view
+    snackBarView.setBackgroundColor(ContextCompat.getColor(view.context, R.color.new_red))
+    val tv = snackbar.view.findViewById(com.google.android.material.R.id.snackbar_text) as TextView
+    val font = ResourcesCompat.getFont(view.context, R.font.helvetica_medium)
+    tv.typeface = font
+    //tv.textSize = view.resources.getDimension(R.dimen._12ssp)
+    snackbar.show()
+}
+}
