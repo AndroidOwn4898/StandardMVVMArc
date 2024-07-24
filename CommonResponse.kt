@@ -10,6 +10,15 @@ open class CommonResponse<T : Any> {
     var time: String? = null
     var data: T? = null
 
+
+    // for Constant
+
+ //   object AppConstant {
+ //   const val APP_VERSION = "1"
+//    const val IS_VALID = "1"
+ //   const val STATUS_TWO = "2"
+//    }
+
     fun isValid(context: Context? = null): Boolean {
         return when (result) {
             IS_VALID -> {
