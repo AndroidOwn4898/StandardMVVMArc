@@ -1,0 +1,38 @@
+package com.codelightinfotech.clijob.viewModel
+
+import android.util.ArrayMap
+import com.codelightinfotech.clijob.netwok.repository.Repository
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+
+class ProfileViewModel : CoroutineScopedViewModel() {
+
+    fun getProvinceList(countryId: String) = with(Repository) {
+        getProvince(countryId)
+    }
+
+    fun getCategory(categoryType: String, provinceId: String, moduleId: String) = with(Repository) {
+        getCategoryList(categoryType, provinceId, moduleId)
+    }
+
+    fun addStaffOwnerProfile(request: ArrayMap<String, Any>) = with(Repository) {
+        addProfile(request)
+    }
+
+    fun uploadFileData(request: HashMap<String, RequestBody>?, imageFile: MultipartBody.Part?) = with(Repository) {
+        uploadFile(request,imageFile)
+    }
+
+    fun saveFileData(request: ArrayMap<String, Any>) = with(Repository) {
+        saveFile(request)
+    }
+
+    fun getDocuments(request: ArrayMap<String, Any>) = with(Repository) {
+        getProfileDocuments(request)
+    }
+
+    fun getStaffOwnerProfileList() = with(Repository) {
+        getProfile()
+    }
+
+}
