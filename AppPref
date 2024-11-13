@@ -1,0 +1,90 @@
+package com.autoroutesante.belocum.utils
+
+import com.autoroutesante.belocum.model.StaffUserProfile
+import com.chibatching.kotpref.KotprefModel
+import com.chibatching.kotpref.gsonpref.gsonNullablePref
+
+object AppPref : KotprefModel() {
+
+    var deviceToken by stringPref("Android")
+    var isUserLogin by booleanPref(false)
+
+    //Module Id
+    // 1 - Qc
+    // 2 - Roc
+    // 3 - Hospitality
+    // 5 - Nursing
+    // 6 - Dental
+    var currentModuleId by stringPref("5")
+
+    //Hospitality or Medical or Nursing
+    var businessType by stringPref(Helper.BUSINESS_TYPE_MEDICAL)
+
+
+    //Staff or Owner
+    var nursingType by stringPref()
+
+    //Region- Quebec or ROC
+    var regionType by stringPref()
+
+    // Locum or Pharmacy
+    var medicalType by stringPref()
+
+
+    //var appLanguages by gsonNullablePref<List<Language>>()
+   // var currentLanguage by gsonNullablePref<Language>()
+
+    var nursingUser by gsonNullablePref<StaffUserProfile>()
+    //var user by gsonNullablePref<Member>()
+
+    var isKeepLogin by booleanPref(true)
+    var staffOtherCertificateName by stringPref("")
+
+    var showAppRating by longPref(10)
+    var confirmCount by longPref()
+    var ratingDisplayCount by intPref()
+    //var launchCount by longPref()
+    var slotModification by gsonNullablePref<String>()
+    var slotCancellation by gsonNullablePref<String>()
+    var isFillSINBankDetails by stringPref("")
+
+    var selectedThemeOption by intPref(1)
+    var isShowCaseHomeOwnerDone by booleanPref(false)
+    var isShowCaseHomeStaffDone by booleanPref(false)
+    var isShowCaseAddSlotDone by booleanPref(false)
+    var isShowCasePillDone by booleanPref(false)
+    var isPillNewDisplay by booleanPref(false)
+//    var isShowCasePillScannerActivityDone by booleanPref(false)
+
+    /**
+     * Starting of QC/ROC Session Manager Conversion
+     * */
+    var authKey by gsonNullablePref<String>()
+    var loginWith by gsonNullablePref<String>()
+    var referralCode by gsonNullablePref<String>()
+
+    var categoryName by gsonNullablePref<String>()
+
+    /**
+     * End of QC/ROC Session Manager Conversion
+     * */
+
+    var accessAddNewClinic by gsonNullablePref<Boolean>(true)
+    var isAutoCalendarSync by booleanPref(false)
+
+    var appUsageDateTimeList  by stringPref("")
+
+}
+
+
+
+
+
+   // shared preference helper https://github.com/chibatching/Kotpref
+    implementation 'com.chibatching.kotpref:kotpref:2.13.2' //2.11.0
+    implementation 'com.chibatching.kotpref:gson-support:2.13.2' //2.11.0
+
+
+apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
+apply plugin: 'kotlin-parcelize'
