@@ -1,0 +1,288 @@
+package com.autoroutesante.belocum.FCM
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.drawable.Drawable
+import android.media.AudioAttributes
+import android.net.Uri
+import android.os.Build
+import android.os.Bundle
+import android.util.Log
+import android.widget.RemoteViews
+import androidx.core.app.NotificationCompat
+import com.autoroutesante.belocum.App
+import com.autoroutesante.belocum.R
+import com.autoroutesante.belocum.eventbus.ChatNotificationRefreshCall
+import com.autoroutesante.belocum.eventbus.EventRefreshCall
+import com.autoroutesante.belocum.model.StaffCalendarEventData
+import com.autoroutesante.belocum.ui.splash.SplashActivity
+import com.autoroutesante.belocum.utils.AppPref.deviceToken
+import com.autoroutesante.belocum.utils.AppPref.isUserLogin
+import com.autoroutesante.belocum.utils.kotlin.fileExtension
+import com.autoroutesante.belocum.utils.kotlin.imageExtensionList
+import com.autoroutesante.belocum.utils.kotlin.startWorkManagerForCalendarSync
+import com.bumptech.glide.Glide
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
+import com.bumptech.glide.signature.ObjectKey
+import com.google.firebase.messaging.FirebaseMessagingService
+import com.google.firebase.messaging.RemoteMessage
+import com.google.gson.Gson
+import com.livinglifetechway.k4kotlin.core.orFalse
+import org.greenrobot.eventbus.EventBus
+import java.io.File
+
+
+/**
+ * converted by Parth Desai on 13/08/2020
+ */
+class FirebaseMessaging : FirebaseMessagingService() {
+
+    private val typeChat = "chat"
+    private val typeForBgSync = listOf("ConfirmSlot", "SlotModifications", "SlotCancellation")
+    private var fcmKeyTitle = "tickerText"
+
+    //    var FCM_KEY_USER_ID = "user_id"
+    private var fcmKeyMessage = "message"
+    private var fcmKeyType = "type"
+    private var fcmKeyDate = "date"
+    private var fcmKeyModel = "model"
+    private var fcmKeyTitleChat = "title"
+    private var fcmKeyChatBadge = "badge"
+    private var fcmKeySound = "sound"
+    private var FCM_KEY_SLOT_ID = "slot_id"
+    private var fcmCalendarSync = "calender_sync"
+    private var FcmPromoCodeAppliedID = "promocode_applied_id"
+    /*var FCM_KEY_OWNER_USER_ID = "owner_user_id"
+    var FCM_KEY_STAFF_USER_ID = "staff_user_id"*/
+
+    override fun onNewToken(s: String) {
+        super.onNewToken(s)
+
+
+        //Abhishek Chaniyara - 21/04/2020
+        //New method for store device token in Kotlin Preference
+        deviceToken = s
+    }
+
+    override fun onMessageReceived(remoteMessage: RemoteMessage) {
+
+        //        Helper.putDebugLog(TAG, "From: " + remoteMessage.getNotification().getBody());
+        Log.d("chatData:", "" + remoteMessage.data)
+        if (isUserLogin) {
+            if (isValidMessage(remoteMessage.data)) {
+                createNotification(remoteMessage)
+            }
+        }
+    }
+
+    private fun createNotification(remoteMessage: RemoteMessage) {
+        val messageData = remoteMessage.data
+
+
+        val title: String? = messageData[fcmKeyTitle]
+        val message: String? = messageData[fcmKeyMessage]
+        val type: String? = messageData[fcmKeyType]
+        val badge: String? = messageData[fcmKeyChatBadge]
+        val sound = messageData[fcmKeySound]
+        val calendarSync = messageData[fcmCalendarSync]
+        val picture = remoteMessage.data["picture"]
+        val category = remoteMessage.data["category"]
+
+        val soundUri = Uri.parse("android.resource://" + applicationContext.packageName + "/" + R.raw.recivemoneysound)
+
+        if (openTypeName == type) {
+            return
+        }
+        if (type == typeChat) {
+            if (openTypeName == type) {
+                return
+            }
+            if (badge != null && badge.isNotEmpty()) {
+                EventBus.getDefault().post(ChatNotificationRefreshCall(badge.toInt()))
+            }
+            if (openTypeName == "recent_chat") {
+                return
+            }
+        } else if (typeForBgSync.contains(type) && calendarSync?.isNotEmpty().orFalse()) {
+            EventBus.getDefault().post(EventRefreshCall(messageData["slot_id"]))
+
+            val c = Gson().fromJson(calendarSync, StaffCalendarEventData::class.java)
+            c?.let { if (it.slotsId?.isNotEmpty().orFalse()) startWorkManagerForCalendarSync(it) }
+        } else if (type == "SlotModifications" || type == "SlotCancellation") {
+            EventBus.getDefault().post(EventRefreshCall(messageData["slot_id"]))
+        } else {
+            EventBus.getDefault().post(EventRefreshCall("" + type))
+        }
+
+        val mBuilder = NotificationCompat.Builder(this, getString(R.string.app_name)).setSmallIcon(notificationIcon()).setStyle(NotificationCompat.BigTextStyle().bigText(message)).setLargeIcon(largeIcon()).setContentText(message)
+        //  .setTicker(ticker);
+        if (!sound.isNullOrEmpty() && sound == "recivemoneysound.wav") {
+            mBuilder.setSound(soundUri)
+        }
+        mBuilder.setContentIntent(getResultIntent(messageData))
+        mBuilder.setAutoCancel(true)
+
+        if (type == typeChat) {
+            val titlechat = remoteMessage.data[fcmKeyTitleChat]
+            mBuilder.setContentTitle(titlechat)
+        } else {
+            mBuilder.setContentTitle(title)
+        }
+
+
+        if (category == "imageWidget" && picture?.isNotEmpty().orFalse() && imageExtensionList.contains((File(picture.orEmpty()).fileExtension()))) {
+
+            Glide.with(App.getApplicationContext()).asBitmap().load(picture).signature(ObjectKey(System.currentTimeMillis())).into(object : CustomTarget<Bitmap?>() {
+
+                override fun onLoadCleared(placeholder: Drawable?) {}
+                override fun onResourceReady(resource: Bitmap, transition: Transition<in Bitmap?>?) {
+
+
+                    val mBuilderCustom = NotificationCompat.Builder(baseContext, getString(R.string.app_name)).setSmallIcon(notificationIcon()).setContentTitle(title)
+                            //.setLargeIcon(resource)
+                            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+                            //.setStyle(NotificationCompat.BigTextStyle().bigText(message))
+                            .setContentText(message)
+
+                    val remoteViews = RemoteViews(packageName, R.layout.customnotification)
+                    remoteViews.setImageViewBitmap(R.id.imagenoti, resource)
+                    remoteViews.setTextViewText(R.id.message, message)
+                    remoteViews.setInt(R.id.message, "setMaxLines", 4)
+
+
+                    mBuilderCustom.setContent(remoteViews)
+                    mBuilderCustom.setCustomContentView(remoteViews)
+                    mBuilderCustom.setCustomBigContentView(remoteViews)
+
+
+                    if (type == "Slotnew") {
+                        mBuilderCustom.addAction(0, getString(R.string.apply), getResultIntent(messageData))
+                    } else {
+                        mBuilderCustom.setContentIntent(getResultIntent(messageData))
+                    }
+                    mBuilderCustom.setAutoCancel(true)
+
+/*                    val s = NotificationCompat.BigPictureStyle().bigPicture(resource).bigLargeIcon(null)
+                    s.setSummaryText(message)
+                    mBuilderCustom.setStyle(s)*/
+
+                    val mNotificationId = System.currentTimeMillis().toInt()
+                    val mNotifyMgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        /*   if(sound == "")
+                        {
+                            channel = NotificationChannel(getString(R.string.silent), getString(R.string.silent), NotificationManager.IMPORTANCE_LOW)
+                            //channel.setSound(null, null)
+                            mBuilderCustom.setChannelId(getString(R.string.silent))
+                        }
+                        else
+                        {*/   //}
+                        val channel = NotificationChannel(getString(R.string.app_name), getString(R.string.app_name), NotificationManager.IMPORTANCE_DEFAULT)
+                        mBuilderCustom.setChannelId(getString(R.string.app_name))
+
+                        mNotifyMgr.createNotificationChannel(channel)
+                    }
+                    mNotifyMgr.notify(mNotificationId, mBuilderCustom.build())
+                    if (badge != null && badge.isNotEmpty()) {
+                        EventBus.getDefault().post(ChatNotificationRefreshCall(badge.toInt()))
+                    }
+                }
+            })
+
+        } else {
+            val mNotificationId = System.currentTimeMillis().toInt()
+            val mNotifyMgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (!sound.isNullOrEmpty() && sound == "recivemoneysound.wav") {
+                    val audioAttributes: AudioAttributes = AudioAttributes.Builder().setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).setUsage(AudioAttributes.USAGE_ALARM).build()
+                    val channel = NotificationChannel(getString(R.string.payment), getString(R.string.payment), NotificationManager.IMPORTANCE_DEFAULT)
+                    channel.setSound(soundUri, audioAttributes)
+                    mBuilder.setChannelId(getString(R.string.payment))
+                    mNotifyMgr.createNotificationChannel(channel)
+                } else {
+                    val channel = NotificationChannel(getString(R.string.app_name), getString(R.string.app_name), NotificationManager.IMPORTANCE_DEFAULT)
+                    mBuilder.setChannelId(getString(R.string.app_name))
+                    mNotifyMgr.createNotificationChannel(channel)
+                }
+            }
+
+            mNotifyMgr.notify(mNotificationId, mBuilder.build())
+        }
+    }
+
+    private fun largeIcon(): Bitmap {
+        return BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher)
+    }
+
+    private fun notificationIcon(): Int {
+        return R.drawable.ic_notification_be
+    }
+
+    private fun getResultIntent(messageData: Map<String, String>): PendingIntent {
+        val resultIntent = Intent(this, SplashActivity::class.java)
+        val b = Bundle()
+        //  resultIntent.putExtra("from", "notification");
+        // resultIntent.putExtra(FCM_KEY_USERID, userid);
+        val type = messageData[fcmKeyType]
+        val date = messageData[fcmKeyDate]
+        val slotId = messageData[FCM_KEY_SLOT_ID]
+        val promoCodeAppliedId = messageData[FcmPromoCodeAppliedID]
+        when (type) {
+            "SlotApply" -> {
+                b.putString(fcmKeyType, type)
+                b.putString(FCM_KEY_SLOT_ID, slotId)
+            }
+            "Slotnew" -> {
+                b.putString(fcmKeyType, type)
+                b.putString(FCM_KEY_SLOT_ID, slotId)
+            }
+            typeChat -> {
+                b.putString(fcmKeyType, type)
+            }
+            "PromoCodeInfo" -> {
+                b.putString(fcmKeyType, type)
+                b.putString(FcmPromoCodeAppliedID, promoCodeAppliedId)
+            }
+/*            "SlotModifications" -> EventBus.getDefault().post(EventRefreshCall(messageData["slot_id"]))
+            "SlotCancellation" -> EventBus.getDefault().post(EventRefreshCall(messageData["slot_id"]))*/
+            "AP" -> {
+            }
+            "NH" -> {
+                b.putString(fcmKeyType, type)
+                b.putString(fcmKeyDate, date)
+            }
+            "fireworksConfetti", "christmasDay", "userApproved", "staffProfile", "staffPaymentHistory", "staffSlotAvailable", "staffSetting", "staffRecentChat", "Referral", "ReferralInfo", "workerStatusHistory", "staffBankHistory", "PromoCode" -> {
+                b.putString(fcmKeyType, type)
+            }
+        }
+        resultIntent.putExtra("data", b)
+        resultIntent.action = System.currentTimeMillis().toString()
+        val flag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            PendingIntent.FLAG_IMMUTABLE
+        } else {
+            PendingIntent.FLAG_ONE_SHOT
+        }
+        return PendingIntent.getActivity(this, 0, resultIntent, flag)
+    }
+
+    private fun isValidMessage(messageData: Map<String, String?>): Boolean {
+        return messageData.containsKey(fcmKeyMessage)
+    }
+
+    companion object {
+        var openTypeName: String? = null
+
+        fun setNotificationListener(name: String?) {
+            openTypeName = name
+        }
+    }
+
+}
