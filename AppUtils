@@ -1,0 +1,1354 @@
+package com.autoroutesante.belocum.utils.kotlin
+
+
+import android.app.Activity
+import android.app.AlertDialog
+import android.app.Dialog
+import android.content.*
+import android.database.Cursor
+import android.graphics.*
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Drawable
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.Uri
+import android.os.Build
+import android.provider.CalendarContract
+import android.provider.MediaStore
+import android.provider.OpenableColumns
+import android.provider.Settings
+import android.text.InputType
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.TextPaint
+import android.text.method.LinkMovementMethod
+import android.text.method.PasswordTransformationMethod
+import android.text.style.ClickableSpan
+import android.util.Log
+import android.view.*
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
+import android.widget.ImageView
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.AppCompatTextView
+import androidx.core.content.ContextCompat
+import androidx.core.content.pm.ShortcutManagerCompat
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.text.HtmlCompat
+import androidx.fragment.app.FragmentActivity
+import androidx.recyclerview.widget.RecyclerView
+import androidx.work.Data
+import androidx.work.OneTimeWorkRequest
+import androidx.work.WorkManager
+import com.autoroutesante.belocum.App
+import com.autoroutesante.belocum.BuildConfig
+import com.autoroutesante.belocum.R
+import com.autoroutesante.belocum.databinding.DialogImageViewBinding
+import com.autoroutesante.belocum.databinding.LayoutAlertDialogBinding
+import com.autoroutesante.belocum.model.ActionForAccessPermission
+import com.autoroutesante.belocum.model.StaffCalendarEventData
+import com.autoroutesante.belocum.model.stringForParcelize
+import com.autoroutesante.belocum.network.resources.Resource
+import com.autoroutesante.belocum.ui.common_ui.PerformLogoutActivity
+import com.autoroutesante.belocum.ui.common_ui.UpdateMaintenanceActivity
+import com.autoroutesante.belocum.ui.login.BeLocumLoginActivity
+import com.autoroutesante.belocum.utils.*
+import com.autoroutesante.belocum.utils.Appconstant.FORCE_UPDATE
+import com.autoroutesante.belocum.utils.Appconstant.UNDER_MAINTENANCE
+import com.autoroutesante.belocum.viewmodels.AppUtilsViewModel
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DecodeFormat
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.bumptech.glide.request.RequestOptions
+import com.bumptech.glide.request.target.CustomTarget
+import com.bumptech.glide.request.transition.Transition
+import com.bumptech.glide.signature.ObjectKey
+import com.facebook.shimmer.ShimmerFrameLayout
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.material.checkbox.MaterialCheckBox
+import com.google.android.material.snackbar.Snackbar
+import com.google.android.material.textview.MaterialTextView
+import com.google.android.play.core.review.ReviewInfo
+import com.google.android.play.core.review.ReviewManager
+import com.google.android.play.core.review.ReviewManagerFactory
+import com.google.android.play.core.tasks.Task
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.livinglifetechway.k4kotlin.core.hide
+import com.livinglifetechway.k4kotlin.core.orFalse
+import com.livinglifetechway.k4kotlin.core.orZero
+import com.livinglifetechway.k4kotlin.core.show
+import pub.devrel.easypermissions.AppSettingsDialog.DEFAULT_SETTINGS_REQ_CODE
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.net.URL
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import java.text.ParseException
+import java.util.*
+
+
+var imageExtensionList = arrayOf("jpg", "jpeg", "png")
+
+val attachmentMimeType = arrayOf("image/jpg", "image/jpeg", "image/png", "application/pdf", "application/msword", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/mspowerpoint", "application/xps", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+
+var reviewInfo: ReviewInfo? = null
+var reviewManager: ReviewManager? = null
+private val viewModel by lazy { AppUtilsViewModel() }
+
+fun Context.createFile(filePath: String, fileName: String, extension: String): File {
+    val storageDir = File(getExternalFilesDir(null), filePath)
+
+    if (!storageDir.exists()) {
+        storageDir.mkdirs()
+    }
+
+    val ext = if (extension.contains(".")) extension.replace(".", "") else extension
+    return File.createTempFile("$fileName-", ".$ext", storageDir)
+}
+
+fun createFolderForDownload(path: String?) {
+    path ?: return
+    val checkDir = File(path)
+    if (!checkDir.exists()) {
+        val directory = File(path)
+        directory.mkdir()
+        //if there is no SD card
+        /*if (Environment.getExternalStorageState() == null) {
+            val directory = File(Environment.getDataDirectory().absolutePath + getString(R.string.app_name))
+            if(!directory.exists()) directory.mkdir()
+        }else if(Environment.getExternalStorageState() != null){  // if phone DOES have sd card
+            val directory = File(this.getExternalFilesDir(null)?.absolutePath + getString(R.string.app_name))
+            if(!directory.exists()) directory.mkdir()
+        }*/
+    }
+}
+/*fun downloadFile(url: String, outputFile: File) {
+    try {
+        val u = URL(url)
+        val conn: URLConnection = u.openConnection()
+        val contentLength: Int = conn.contentLength
+        val stream = DataInputStream(u.openStream())
+        val buffer = ByteArray(contentLength)
+        stream.readFully(buffer)
+        stream.close()
+        val fos = DataOutputStream(FileOutputStream(outputFile))
+        fos.write(buffer)
+        fos.flush()
+        fos.close()
+    } catch (e: FileNotFoundException) {
+        return  // swallow a 404
+    } catch (e: IOException) {
+        return  // swallow a 404
+    }
+}*/
+
+fun String.getFileName(): String? {
+    val regex = """(.+)/(.+)\.(.+)""".toRegex()
+    val matchResult = regex.matchEntire(this)
+
+    if (matchResult != null) {
+//        val (directory, fileName, extension) = matchResult.destructured
+        val (_, fileName, _) = matchResult.destructured
+        return fileName
+    }
+    return null
+}
+
+fun Context.getRotatedImage(file: File): File? {
+    val fileSizeInBytes = file.length()
+    if (fileSizeInBytes <= 1048576) // 1mb
+    {
+        return file
+    }
+
+    val bitmap = ImageRotator.rotateImage(file.path, true)
+    bitmap?.let {
+        val newFile = createFile("media/images", "IMG", "jpg")
+        val maxImageSize = 700 * 1024 // max final file size in kilobytes
+        var compressQuality = 100 // quality decreasing by 5 every loop.
+        var streamLength: Int
+        do {
+            val bmpStream = ByteArrayOutputStream()
+//            Log.d("compressBitmap", "Quality: $compressQuality")
+            it.compress(Bitmap.CompressFormat.JPEG, compressQuality, bmpStream)
+            val bmpPicByteArray: ByteArray = bmpStream.toByteArray()
+            streamLength = bmpPicByteArray.size
+            compressQuality -= 5
+//            Log.d("compressBitmap", "Size: " + streamLength / 1024 + " kb")
+        } while (streamLength >= maxImageSize)
+
+        try {
+            //save the resized and compressed file to disk cache
+            // Log.d("compressBitmap", "cacheDir: " + getCacheDir())
+            val bmpFile = FileOutputStream(newFile)
+            val newBitmap = Bitmap.createBitmap(it.width, it.height, it.config)
+            val canvas = Canvas(newBitmap)
+            canvas.drawColor(Color.WHITE)
+            canvas.drawBitmap(it, 0f, 0f, null)
+            newBitmap.compress(Bitmap.CompressFormat.JPEG, compressQuality, bmpFile)
+            bmpFile.flush()
+            bmpFile.close()
+        } catch (e: java.lang.Exception) {
+//            Log.e("compressBitmap", "Error on saving file")
+        }
+        //return the path of resized and compressed file
+        //return the path of resized and compressed file
+        val compressFileSizeInBytes = newFile.length()
+        if (compressFileSizeInBytes > 1e+7) // 10mb
+        {
+            file.deleteFileFromCache()
+            newFile.deleteFileFromCache()
+            Toast.makeText(this, getString(R.string.file_upload_limit), Toast.LENGTH_SHORT).show()
+            //showError(view, getString(R.string.file_upload_limit), view)
+            return null
+        }
+        return newFile
+    } ?: kotlin.run {
+        return null
+    }
+}
+
+fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+    // val debugTag = "MemoryInformation"
+    // Image nin islenmeden onceki genislik ve yuksekligi
+    val height: Int = options.outHeight
+    val width: Int = options.outWidth
+//    Log.d(debugTag, "image height: $height---image width: $width")
+    var inSampleSize = 1
+    if (height > reqHeight || width > reqWidth) {
+        val halfHeight = height / 2
+        val halfWidth = width / 2
+
+        // Calculate the largest inSampleSize value that is a power of 2 and keeps both
+        // height and width larger than the requested height and width.
+        while (halfHeight / inSampleSize > reqHeight && halfWidth / inSampleSize > reqWidth) {
+            inSampleSize *= 2
+        }
+    }
+//    Log.d(debugTag, "inSampleSize: $inSampleSize")
+    return inSampleSize
+}
+
+fun ImageView.loadGif(t: Any?) {
+    Glide.with(this.context).asGif().load(t).format(DecodeFormat.PREFER_RGB_565).signature(ObjectKey(System.currentTimeMillis()))  //for load every time with latest images
+            .timeout(60000).into(this)
+}
+
+fun ImageView.loadImage(t: Any?, id: Int?) {
+    var l = t
+    if (t is File || t is String) {
+        if (t is String) l = l.toString()
+        id?.let {
+            Glide.with(this.context).asBitmap().load(l).format(DecodeFormat.PREFER_RGB_565).centerCrop().placeholder(it).error(it).diskCacheStrategy(DiskCacheStrategy.NONE).skipMemoryCache(true)
+                    // .signature(ObjectKey(System.currentTimeMillis()))  //for load every time with latest images
+                    .timeout(60000).into(this)
+        }
+    }
+}
+
+fun ImageView.loadImageWithFixSize(t: Any?, id: Int?, width: Int?, height: Int?, isCenterCrop: Boolean = true) {
+    var l = t
+    if (t is File || t is String) {
+        if (t is String) l = l.toString()
+        id?.let {
+            if (width != null) {
+                if (height != null) {
+                    if (isCenterCrop) {
+                        Glide.with(this.context).asBitmap().load(l).format(DecodeFormat.PREFER_RGB_565).override(width, height).centerCrop().placeholder(it).error(it).diskCacheStrategy(DiskCacheStrategy.NONE).skipMemoryCache(true).timeout(60000).into(this)
+                    } else {
+                        Glide.with(this.context).asBitmap().load(t).format(DecodeFormat.PREFER_RGB_565).override(width, height).placeholder(it).error(it).diskCacheStrategy(DiskCacheStrategy.NONE).skipMemoryCache(true).timeout(60000).into(this)
+                    }
+                }
+            }
+        }
+    }
+}
+
+fun ImageView.loadRoundImageWithFixSize(t: Any?, id: Int?, size: Int?) {
+    var l = t
+    if (t is File || t is String) {
+        if (t is String) l = l.toString()
+        id?.let {
+            if (size != null) {
+                Glide.with(this.context).asBitmap().load(l).format(DecodeFormat.PREFER_RGB_565).override(size).centerCrop().placeholder(it).error(it).diskCacheStrategy(DiskCacheStrategy.NONE).skipMemoryCache(true).timeout(60000).apply(RequestOptions.circleCropTransform()).into(this)
+            }
+        }
+    }
+}
+
+fun ImageView.loadRoundImageWithoutCacheWithFixSize(t: Any?, id: Int?, size: Int?) {
+    var l = t
+    if (t is File || t is String) {
+        if (t is String) l = l.toString()
+        id?.let {
+            if (size != null) {
+                Glide.with(this.context).asBitmap().load(l).format(DecodeFormat.PREFER_RGB_565).override(size).centerCrop().placeholder(it).error(it).signature(ObjectKey(System.currentTimeMillis()))  //for load every time with latest images
+                        .diskCacheStrategy(DiskCacheStrategy.ALL).timeout(60000).apply(RequestOptions.circleCropTransform()).into(this)
+            }
+        }
+    }
+}
+
+/**
+ * Check Internet Connection
+ * */
+fun Context.isInternetAvailable(): Boolean {
+
+    return if (checkInternet()) {
+        true
+    } else {
+            Toast.makeText(this, getString(R.string.no_internet_connection), Toast.LENGTH_LONG).show()
+            return false
+    }
+}
+
+fun Context.isInternetAvailableWithoutMessage(): Boolean {
+    return checkInternet()
+}
+
+private fun Context.checkInternet(): Boolean {
+    val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        val cap: NetworkCapabilities = cm.getNetworkCapabilities(cm.activeNetwork) ?: return false
+        return cap.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    } else {
+        val networks: Array<Network> = cm.allNetworks
+        for (n in networks) {
+            @Suppress("DEPRECATION") //don't worry This method was deprecated in API level 29.
+            val nInfo = cm.getNetworkInfo(n)
+            @Suppress("DEPRECATION")  //don't worry This method was deprecated in API level 29.
+            if (nInfo != null && nInfo.isConnected) return true
+        }
+    }
+    return false
+}
+
+fun AppCompatActivity.hideKeyboard(view: View? = currentFocus) {
+    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+    imm.hideSoftInputFromWindow(view?.windowToken, 0)
+}
+
+fun File.fileExtension(): String {
+    val fileName = this.name.split("?")
+    return if (fileName.isNotEmpty()) {
+        if (fileName[0].lastIndexOf(".") != -1 && fileName[0].lastIndexOf(".") != 0) fileName[0].substring(fileName[0].lastIndexOf(".") + 1) else ""
+    } else {
+        ""
+    }
+}
+
+/**
+ * Show dialog when account is deactivated
+ * */
+fun Context.deactivateAndUnauthorizedDialog(message: String?) {
+    if (AppPref.isUserLogin) {
+        if (message?.isNotBlank().orFalse()) {
+            var dialog: AlertDialog? = null
+            dialog = this.showAlertDialog(this.getString(R.string.app_name), message, this.getString(R.string.ok), "", {
+                dialog?.dismiss()
+                val intent = Intent(this, PerformLogoutActivity::class.java)
+                intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                startActivity(intent)
+            }, {}, false)
+        } else {
+            val intent = Intent(this, PerformLogoutActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION)
+            startActivity(intent)
+        }
+    } else {
+        if (message?.isNotBlank().orFalse()) {
+            var dialog: AlertDialog? = null
+            dialog = this.showAlertDialog(this.getString(R.string.app_name), message, this.getString(R.string.ok), "", {
+                dialog?.dismiss()
+                performLogoutOperation()
+            }, {}, false)
+        } else {
+            performLogoutOperation()
+        }
+
+    }
+}
+
+fun Context.savePreferenceData(key: String, value: String?) {
+    val sharedPreferences = this.getSharedPreferences(Helper.MyPREFERENCES, Context.MODE_PRIVATE)
+    val editor = sharedPreferences.edit()
+    editor.putString(key, value)
+    editor.apply()
+}
+
+fun Context.getPreferenceData(key: String): String {
+    val sharedPreferences = this.getSharedPreferences(Helper.MyPREFERENCES, Context.MODE_PRIVATE)
+    return sharedPreferences.getString(key, "").orEmpty()
+}
+
+fun Context.setEventIDListToSharedPreferences(key: String, list: List<String?>?) {
+    this.savePreferenceData(key, Gson().toJson(list))
+}
+
+fun Context.getEventIdFromSharedPreferences(key: String): List<String>? {
+    val sharedPreferences = this.getSharedPreferences(Helper.MyPREFERENCES, Context.MODE_PRIVATE)
+    val jsonPreferences = sharedPreferences.getString(key, "")
+    val type = object : TypeToken<List<String?>?>() {}.type
+    return Gson().fromJson(jsonPreferences, type)
+}
+
+fun File?.getFileNameWithoutExtension(): String {
+    var fileName = ""
+    try {
+        if (this != null && this.exists()) {
+            val name = this.name
+            fileName = name.replaceFirst("[.][^.]+$".toRegex(), "")
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+        fileName = ""
+    }
+    return fileName
+}
+
+fun Uri.getFileNameFromUri(): String? {
+    try {
+        var result: String? = null
+        if (this.scheme == "content") {
+            try {
+                App.getApplicationContext().contentResolver.query(this, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null).use { cursor ->
+                    if (cursor?.moveToFirst().orFalse()) {
+                        if (cursor != null) {
+                            result = cursor.getString(cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME))
+                        }
+                    }
+                }
+            } catch (e: java.lang.Exception) {
+                Log.e("Exception", e.localizedMessage.orEmpty())
+            }
+        }
+        if (result == null) {
+            result = this.path
+            val cut = result!!.lastIndexOf('/')
+            if (cut != -1) {
+                result = result!!.substring(cut + 1)
+            }
+        }
+        return result
+    } catch (e: java.lang.Exception) {
+        Log.e("Exception", e.localizedMessage.orEmpty())
+    }
+    return ""
+}
+
+fun permanentlyDenied(activity: Activity) {
+    // this will be called when some/all permissions required by the method are permanently
+    // denied. Handle it your way.
+    var dialog: AlertDialog? = null
+    dialog = activity.showAlertDialog(activity.getString(R.string.permissionDeniedTitle), activity.getString(R.string.permissionPermanentlyDeniedMessage), activity.getString(R.string.appSettings), activity.getString(R.string.cancel), {
+        dialog?.dismiss()
+        val intent = Intent()
+        intent.action = Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+        val uri = Uri.fromParts("package", activity.packageName, null)
+        intent.data = uri
+        activity.startActivityForResult(intent, DEFAULT_SETTINGS_REQ_CODE)
+    }, {
+        dialog?.dismiss()
+    }, false)
+}
+
+fun Context?.showAlertDialog(title: String?, message: String?, positiveText: String?, negativeText: String?, positiveListener: View.OnClickListener, negativeListener: View.OnClickListener, isCancelable: Boolean = true, iconId: Int = -999): AlertDialog {
+    val alertBind: LayoutAlertDialogBinding?
+    val alertDialog: AlertDialog.Builder?
+    when (this) {
+        is AppCompatActivity -> {
+            alertBind = LayoutAlertDialogBinding.inflate(layoutInflater)
+            alertDialog = AlertDialog.Builder(this)
+        }
+        is FragmentActivity -> {
+            alertBind = LayoutAlertDialogBinding.inflate(layoutInflater)
+            alertDialog = AlertDialog.Builder(this)
+        }
+        else -> {
+            alertBind = LayoutAlertDialogBinding.inflate(LayoutInflater.from(this))
+            alertDialog = AlertDialog.Builder(this)
+        }
+    }
+
+    alertDialog.setView(alertBind.root)
+    alertDialog.setCancelable(isCancelable)
+    alertDialog.create()
+    val d = alertDialog.show()
+
+    alertBind.txtTitle.text = title
+    val msg = if (message?.contains("\n").orFalse()) message?.replace("\n", "<br />") else message
+    alertBind.txtMessage.text = msg?.let { HtmlCompat.fromHtml(it, HtmlCompat.FROM_HTML_MODE_LEGACY) }
+    /*if (drawableTextArray.isNotEmpty()) {
+        alertBind.txtMessage.setCompoundDrawablesWithIntrinsicBounds(drawableTextArray[0], drawableTextArray[1], drawableTextArray[2], drawableTextArray[3])
+        alertBind.txtMessage.compoundDrawablePadding = this?.resources?.getDimension(R.dimen._5sdp)?.toInt().orZero()
+    }*/
+    alertBind.txtPositive.text = positiveText
+    if (negativeText?.isNotBlank().orFalse()) {
+        alertBind.txtNegative.show()
+        alertBind.txtNegative.text = negativeText
+    }
+
+    if (iconId != -999) {
+        alertBind.imgIcon.show()
+        alertBind.imgIcon.setImageResource(R.mipmap.ic_launcher)
+    }
+
+    alertBind.txtPositive.setOnClickListener(positiveListener)
+    alertBind.txtNegative.setOnClickListener(negativeListener)
+
+    d.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+    return d
+}
+
+fun displayMessage(view: View, message: String) {
+    val snack = Snackbar.make(view, message, Snackbar.LENGTH_LONG)
+    snack.view.setBackgroundColor(ContextCompat.getColor(view.context, R.color.color_primary_variant))
+    val tv = snack.view.findViewById(com.google.android.material.R.id.snackbar_text) as TextView
+    val font = ResourcesCompat.getFont(view.context, R.font.font_medium)
+    tv.typeface = font
+    snack.show()
+}
+
+fun <T : Number> T?.orOne(): T = this ?: (1 as T)
+
+
+fun Context.showImageDialog(path: String?, id: Int?) {
+    val alertBind = DialogImageViewBinding.inflate(LayoutInflater.from(this))
+    val alertDialog = AlertDialog.Builder(this)
+    alertDialog.setView(alertBind.root)
+    alertDialog.setCancelable(true)
+    alertDialog.create()
+
+    var dialog: Dialog? = null
+
+    alertBind.imageSource.loadImageWithFixSize(path, id, 0, resources.getDimension(R.dimen._150sdp).toInt())
+
+    alertBind.imageClose.setOnClickListener {
+        dialog?.cancel()
+    }
+
+    dialog = alertDialog.show()
+    dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+
+
+}
+
+fun getDeviceLanguageId(): String {
+    val currentLanguage = Locale.getDefault().language
+    if (currentLanguage.equals("EN", true)) {
+        return "1"
+    } else if (currentLanguage.equals("FR", true)) {
+        return "2"
+    }
+    return "1"
+}
+
+fun getDeviceBearerToken(publicKey: String): String {
+    // val publicKey = randomString(53)
+    val firstKey = publicKey.substring(8, 24)
+    val lastKey = publicKey.substring(publicKey.length - 17)
+    val privateKey = firstKey + lastKey
+//    val plainText = "DKisWorkingOnAES"
+    //val plainText = "5tf28+!VmhRVsCGX-nF3-D^EwH#G"
+    //val plainText = "a9#gP0oyLR2exu&X8GBA#O8VcB#c^Ys9^!WMwfO^uKLDdenr%4_"
+    val plainText = "VIb2bX%ePiTu_x#oS&oE^o&nnaU?2!I5N^VrK%M5N#S-5odl&l8"
+    /*  Log.d("publicKey", "" + publicKey)
+      Log.d("firstKey", "" + firstKey)
+      Log.d("lastKey", "" + lastKey)
+  */
+    val cryptLib = CryptLib()
+
+    val bearerToken = cryptLib.encryptPlainTextWithRandomIV(plainText, privateKey)
+    println("bearerToken $bearerToken")
+
+    return bearerToken
+}
+
+fun randomString(length: Int): String {
+    val source = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+    return (1..length).map { source.random() }.joinToString("")
+
+}
+
+fun getPasswordBearerToken(publicKey: String, password: String): String {
+
+    val firstKey = publicKey.substring(8, 24)
+    val lastKey = publicKey.substring(publicKey.length - 17)
+    val privateKey = firstKey + lastKey
+    val cryptLib = CryptLib()
+    val bearerToken = cryptLib.encryptPlainTextWithRandomIV(password, privateKey)
+    println("bearerToken $bearerToken")
+
+    return bearerToken
+}
+
+fun Context.performLogoutOperation() {
+
+    val selectedTheme = AppPref.selectedThemeOption
+    val isShowCaseHomeStaffDone = AppPref.isShowCaseHomeStaffDone
+    val isShowCaseHomeOwnerDone = AppPref.isShowCaseHomeOwnerDone
+    val isShowCaseAddSlotDone = AppPref.isShowCaseAddSlotDone
+    val isShowCasePillDone = AppPref.isShowCasePillDone
+    val isPillNewDisplay = AppPref.isPillNewDisplay
+
+    val loginWidth = AppPref.nursingUser?.loginWith
+    AppPref.clear()
+    AppPref.isUserLogin = false
+    AppPref.selectedThemeOption = selectedTheme
+    AppPref.isShowCaseHomeStaffDone = isShowCaseHomeStaffDone
+    AppPref.isShowCaseHomeOwnerDone = isShowCaseHomeOwnerDone
+    AppPref.isShowCaseAddSlotDone = isShowCaseAddSlotDone
+    AppPref.isShowCasePillDone = isShowCasePillDone
+    AppPref.isPillNewDisplay = isPillNewDisplay
+
+    ShortcutManagerCompat.removeAllDynamicShortcuts(this)
+
+    val file = File(getExternalFilesDir(null), "sharing/staffProfileImage.jpg")
+    if (file.exists()) {
+        file.delete()
+    }
+    when (loginWidth) {
+        "Google" -> {
+            //Google Sign out code
+            try {
+                val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestEmail().build()
+                // Build a GoogleApiClient with access to GoogleSignIn.API and the options above.
+                val mGoogleApiClient = GoogleSignIn.getClient(this, gso)
+                mGoogleApiClient.signOut()
+
+
+            } catch (e: java.lang.Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    val intent = Intent(this, BeLocumLoginActivity::class.java)
+    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+    startActivity(intent)
+
+}
+
+fun EditText.readOnlyEditText(b: Boolean) {
+    this.isFocusableInTouchMode = !b
+    this.isCursorVisible = !b
+}
+
+fun Context.UpdateAndMaintenance(result: String? = "", time: String? = "") {
+    if (result == FORCE_UPDATE) {
+        openForceUpdateScreen("update", time)
+    } else if (result == UNDER_MAINTENANCE) {
+        openForceUpdateScreen("maintenance", time)
+    }
+}
+
+fun Context.openForceUpdateScreen(mode: String, time: String?) {
+    val intent = Intent(this, UpdateMaintenanceActivity::class.java).apply {
+        putExtra("mode", mode)
+        putExtra("time", time)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+    startActivity(intent)
+}
+
+fun openChromeCustomTab(mActivity: Activity, url1: String?) {
+
+    if (!url1.isNullOrEmpty()) {
+        openFile(mActivity, url1)
+    }
+    /*
+     val builder = CustomTabsIntent.Builder()
+     //builder.setToolbarColor(ContextCompat.getColor(requireActivity(), R.color.themeColor))
+     builder.setShareState(CustomTabsIntent.SHARE_STATE_ON)
+     builder.setShowTitle(true)
+     val customTabsIntent = builder.build()
+     val helper = CustomTabHelper()
+     val packageName = helper.getPackageNameToUse(mActivity, url1.orEmpty())
+
+
+     if (packageName == null) {
+         try {
+             ContextCompat.startActivity(
+                 mActivity,
+                 Intent(Intent.ACTION_VIEW).setData(Uri.parse(url1)), null
+             )
+         } catch (e: ActivityNotFoundException) {
+             showError(
+                 rootView,
+                 mActivity.getString(R.string.no_application_found)
+             )
+         } catch (e: Exception) {
+             showError(
+                 rootView,
+                 mActivity.getString(R.string.no_application_found)
+             )
+         }
+     } else {
+         try {
+             customTabsIntent.intent.setPackage(packageName)
+             customTabsIntent.intent.flags = Intent.FLAG_ACTIVITY_NO_HISTORY
+             customTabsIntent.launchUrl(mActivity, Uri.parse(url1))
+         } catch (e: ActivityNotFoundException) {
+             showError(
+                 rootView,
+                 mActivity.getString(R.string.no_application_found)
+             )
+         } catch (e: Exception) {
+             showError(
+                 rootView,
+                 mActivity.getString(R.string.no_application_found)
+             )
+         }
+     }*/
+}
+
+fun openFile(mActivity: Activity, url: String) {
+    try {
+        val uri = Uri.parse(url)
+        val intent = Intent(Intent.ACTION_VIEW)
+        if (url.contains(".doc") || url.contains(".docx")) {
+            // Word document
+            intent.setDataAndType(uri, "application/msword")
+        } else if (url.contains(".pdf")) {
+            // PDF file
+            intent.setDataAndType(uri, "application/pdf")
+        } else if (url.contains(".ppt") || url.contains(".pptx")) {
+            // Powerpoint file
+            intent.setDataAndType(uri, "application/vnd.ms-powerpoint")
+        } else if (url.contains(".xls") || url.contains(".xlsx")) {
+            // Excel file
+            intent.setDataAndType(uri, "application/vnd.ms-excel")
+        } else if (url.contains(".zip")) {
+            // ZIP file
+            intent.setDataAndType(uri, "application/zip")
+        } else if (url.contains(".rar")) {
+            // RAR file
+            intent.setDataAndType(uri, "application/x-rar-compressed")
+        } else if (url.contains(".rtf")) {
+            // RTF file
+            intent.setDataAndType(uri, "application/rtf")
+        } else if (url.contains(".wav") || url.contains(".mp3")) {
+            // WAV audio file
+            intent.setDataAndType(uri, "audio/x-wav")
+        } else if (url.contains(".gif")) {
+            // GIF file
+            intent.setDataAndType(uri, "image/gif")
+        } else if (url.contains(".jpg") || url.contains(".jpeg") || url.contains(".png")) {
+            // JPG file
+            intent.setDataAndType(uri, "image/jpeg")
+        } else if (url.contains(".txt")) {
+            // Text file
+            intent.setDataAndType(uri, "text/plain")
+        } else if (url.contains(".3gp") || url.contains(".mpg") || url.contains(".mpeg") || url.contains(".mpe") || url.contains(".mp4") || url.contains(".avi")) {
+            // Video files
+            intent.setDataAndType(uri, "video/*")
+        } else {
+            intent.data = Uri.parse(url)
+        }
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        mActivity.startActivity(intent)
+    } catch (e: ActivityNotFoundException) {
+        try {
+            ContextCompat.startActivity(mActivity, Intent(Intent.ACTION_VIEW).setData(Uri.parse(url)), null)
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(mActivity, mActivity.getString(R.string.no_application_found), Toast.LENGTH_SHORT).show()
+            //showError(rootView, mActivity.getString(R.string.no_application_found))
+        } catch (e: Exception) {
+            Toast.makeText(mActivity, mActivity.getString(R.string.no_application_found), Toast.LENGTH_SHORT).show()
+            //showError(rootView, mActivity.getString(R.string.no_application_found))
+        }
+    }
+}
+
+fun Activity.makeStatusBarTransparent() {
+    window.apply {
+        clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS)
+        addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+        } else {
+            decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+        }
+        statusBarColor = Color.TRANSPARENT
+    }
+}
+
+fun AppCompatTextView.makeClickableString(setString: String, startPosition: Int, endPosition: Int, wantToDisplayUnderLine: Boolean, linkColor: Int, clickBack: () -> Unit) {
+    val ss = SpannableString(setString)
+    val clickableSpan: ClickableSpan = object : ClickableSpan() {
+        override fun updateDrawState(ds: TextPaint) {
+            super.updateDrawState(ds)
+            ds.isUnderlineText = wantToDisplayUnderLine
+            ds.color = linkColor
+        }
+
+        override fun onClick(widget: View) {
+            clickBack.invoke()
+        }
+    }
+
+    ss.setSpan(clickableSpan, startPosition, endPosition, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+
+    this.movementMethod = LinkMovementMethod.getInstance()
+    this.setText(ss, TextView.BufferType.SPANNABLE)
+}
+
+fun View.makeLinksOnAnyView(context: Context, textToAttachLink: Array<String>, wantToDisplayUnderLine: Boolean = false, linkColor: Int = ContextCompat.getColor(context, R.color.lightDark), clickBack: () -> Unit) {
+    when (this) {
+        is MaterialCheckBox -> {
+            makeLinkOnViewOperation(context, this.text, this.text.toString(), this, textToAttachLink, wantToDisplayUnderLine, linkColor, clickBack)
+        }
+        is MaterialTextView -> {
+            makeLinkOnViewOperation(context, this.text, this.text.toString(), this, textToAttachLink, wantToDisplayUnderLine, linkColor, clickBack)
+        }
+        else -> {
+            return
+        }
+    }
+}
+
+private fun makeLinkOnViewOperation(context: Context, c: CharSequence, text: String, textView: TextView, textToAttachLink: Array<String>, wantToDisplayUnderLine: Boolean = false, linkColor: Int = ContextCompat.getColor(context, R.color.lightDark), clickBack: () -> Unit) {
+    val spannableString = SpannableString(c)
+    var clickableSpan: ClickableSpan?
+    textToAttachLink.forEachIndexed { _, link ->
+        val startIndexOfLink = text.indexOf(link)
+        clickableSpan = object : ClickableSpan() {
+            override fun updateDrawState(ds: TextPaint) {
+                super.updateDrawState(ds)
+                ds.isUnderlineText = wantToDisplayUnderLine
+                ds.color = linkColor
+            }
+
+            override fun onClick(widget: View) {
+                clickBack.invoke()
+            }
+        }
+        spannableString.setSpan(clickableSpan, startIndexOfLink, startIndexOfLink + link.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+    }
+
+    textView.movementMethod = LinkMovementMethod.getInstance()
+    textView.setText(spannableString, TextView.BufferType.SPANNABLE)
+
+}
+
+fun List<ActionForAccessPermission>?.checkAccess(sectionName: String): ArrayList<stringForParcelize> {
+    val notAccessList = ArrayList<stringForParcelize>()
+    val profileActionList = listOf("view", "edit", "add_new_clinic")
+    val menuActionList = listOf("leftmenu_manage_access")
+
+    if (this?.size.orZero() <= 0) return notAccessList
+    when (sectionName.lowercase()) {
+        "profile" -> {
+            this?.forEach { it1 ->
+                profileActionList.forEachIndexed { index, _ ->
+                    if (!it1.isAccess.orFalse() && it1.uniqueName?.lowercase().equals(profileActionList[index], true)) {
+                        notAccessList.add(stringForParcelize(profileActionList[index]))
+                    }
+                }
+            }
+        }
+        "menu" -> {
+            this?.forEach { it1 ->
+                menuActionList.forEachIndexed { index, _ ->
+                    if (!it1.isAccess.orFalse() && it1.uniqueName?.lowercase().equals(menuActionList[index], true)) {
+                        notAccessList.add(stringForParcelize(menuActionList[index]))
+                    }
+                }
+            }
+        }
+    }
+
+    return notAccessList
+}
+
+fun ShimmerFrameLayout.stop(rcv: RecyclerView) {
+    this.stopShimmer()
+    this.hide()
+    rcv.show()
+}
+
+fun ShimmerFrameLayout.start(rcv: RecyclerView) {
+    rcv.hide()
+    this.show()
+    this.startShimmer()
+}
+
+/*fun String?.baseUrlForImage(): String {
+    var url = ""
+    if (this?.isNotBlank().orFalse()) {
+        url = if (!this?.contains("http").orFalse()) {
+            if (Helper.BASE_URL_NURSING_NODE.startsWith("https://dev.belocum.com") || Helper.BASE_URL_NURSING_NODE.startsWith("http://192.168.1.123:3000")) {
+                "$IMAGE_BASE_URL_DEV$this"
+            } else {
+                "$IMAGE_BASE_URL_PRODUCTION$this"
+            }
+        } else {
+            this.orEmpty()
+        }
+    }
+    return url
+}*/
+
+fun Context.openStore() {
+    val uri = Uri.parse("market://details?id=" + BuildConfig.APPLICATION_ID)
+    var intent = Intent(Intent.ACTION_VIEW, uri)
+
+    intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY or Intent.FLAG_ACTIVITY_NEW_DOCUMENT or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+
+    if (intent.resolveActivity(packageManager) != null) {
+        startActivity(intent)
+    } else {
+        intent = Intent(Intent.ACTION_VIEW, Uri.parse("http://play.google.com/store/apps/details?id=" + BuildConfig.APPLICATION_ID))
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivity(intent)
+        } else {
+            Toast.makeText(this, getString(R.string.no_application_found), Toast.LENGTH_LONG).show()
+        }
+    }
+}
+
+fun Activity.inAppReview() {
+
+    reviewManager = ReviewManagerFactory.create(this)
+
+    val request: Task<ReviewInfo> = reviewManager!!.requestReviewFlow()
+    request.addOnCompleteListener { task ->
+        if (task.isSuccessful) {
+            reviewInfo = task.result
+            if (reviewInfo != null) {
+                val flow: Task<Void> = reviewManager!!.launchReviewFlow(this, reviewInfo!!)
+                flow.addOnCompleteListener { }
+            }
+        } else {
+            openStore()
+        }
+    }
+}
+
+fun AppCompatTextView.blur() {
+    this.setLayerType(View.LAYER_TYPE_SOFTWARE, null)
+    val radius = this.textSize / 3
+    val filter = BlurMaskFilter(radius, BlurMaskFilter.Blur.NORMAL)
+    this.paint.maskFilter = filter
+}
+
+//region Calendar Sync operation using Query
+fun Context.deleteCalendarEventUsingQuery(query: String, listOfQuery: List<String> = emptyList(), listToAddEvent: List<StaffCalendarEventData>?, wantToAddEvent: Boolean = true): String {
+    commonDeleteCalendarEventWithQuery(this, query, listOfQuery)
+    return if (wantToAddEvent) this.addCalendarEvent(listToAddEvent.orEmpty()) else ""
+}
+
+private fun commonDeleteCalendarEventWithQuery(context: Context, query: String, listOfQuery: List<String> = emptyList()) {
+    var cur: Cursor? = null
+    val cr: ContentResolver = context.contentResolver
+    val calUriString = "content://com.android.calendar/events"
+    val cal = Uri.parse(calUriString)
+    val eventProjection = arrayOf("calendar_id", "title", "_id")
+    val calenderID = getCalendarId(context)
+    var selection = "((calendar_id = $calenderID OR calendar_id = 1) AND (deleted != 1)"
+    if (listOfQuery.isNotEmpty()) {
+        selection += " AND (title LIKE '${listOfQuery[0]} %'"
+        listOfQuery.forEachIndexed { index, s ->
+            if (index > 0 && index != listOfQuery.size) selection += " OR title LIKE '$s %'"
+            if (index == listOfQuery.size - 1) selection += "))"
+        }
+    } else {
+        selection += " AND (title LIKE '$query %'))"
+    }
+
+    //Log.e("selection:",""+selection)
+
+    runCatching {
+        cur = cr.query(cal, eventProjection, selection, null, null)
+        cur?.let {
+            if (cur?.moveToFirst().orFalse()) {
+                do {
+                    //if ((query.isNotEmpty() && cur?.getString(1)?.contains(query).orFalse())) {
+                    context.deleteWithCursor(it, cr, cal)
+                    //}
+                    /* if (listOfQuery.isNotEmpty()) {
+                         repeat(listOfQuery.size) { it1 ->
+                             cntx.deleteWithCursor(it, cr, cal)
+                         }
+                     }*/
+                } while (it.moveToNext())
+            }
+        }
+        cur?.close()
+    }.onFailure {
+        cur?.close()
+    }
+}
+
+private fun Context.deleteWithCursor(cur: Cursor, cr: ContentResolver, cal: Uri) {
+    val eventUri = ContentUris.withAppendedId(cal, java.lang.Long.valueOf(cur.getString(2)))
+    val reminderUriString = "content://com.android.calendar/reminders"
+    val remUri = Uri.parse(reminderUriString)
+    cr.delete(remUri, "event_id=" + cur.getString(2), null)
+    cr.delete(eventUri, null, null)
+
+    val calenderEventsList = ArrayList<String>()
+    calenderEventsList.addAll(this.getEventIdFromSharedPreferences("eventIds").orEmpty())
+    if (calenderEventsList.contains(cur.getString(2))) {
+        calenderEventsList.remove("" + cur.getString(2))
+    }
+    this.setEventIDListToSharedPreferences("eventIds", calenderEventsList)
+}
+
+private fun Context.addCalendarEvent(data: List<StaffCalendarEventData>?): String {
+    val calenderID = getCalendarId(this)
+    //Log.e("calender id:", "" + calenderID)
+    if (null != calenderID) {
+        val cr = this.contentResolver
+        val values = ContentValues()
+
+        data?.forEach { eventData ->
+            val calStart = (eventData.startDate + " " + eventData.startTime).toCalendar(Appconstant.DATE_FORMAT_CALENDER_SYNC)
+
+            var calEnd = Calendar.getInstance()
+            try {
+                calEnd = if (eventData.type == "Multidays") {
+                    (eventData.endDate + " " + eventData.endTime).toCalendar(Appconstant.DATE_FORMAT_CALENDER_SYNC)
+                } else {
+                    (eventData.startDate + " " + eventData.endTime).toCalendar(Appconstant.DATE_FORMAT_CALENDER_SYNC)
+                }
+            } catch (ex: ParseException) {
+            }
+            values.put(CalendarContract.Events.DTSTART, calStart.timeInMillis)
+            values.put(CalendarContract.Events.DTEND, calEnd.timeInMillis)
+            values.put(CalendarContract.Events.TITLE, eventData.title)
+            values.put(CalendarContract.Events.EVENT_LOCATION, eventData.address)
+            //  values.put(CalendarContract.Events.DESCRIPTION, "test description");
+            val timeZone = TimeZone.getDefault()
+            values.put(CalendarContract.Events.EVENT_TIMEZONE, timeZone.id)
+
+            // Default calendar
+            values.put(CalendarContract.Events.CALENDAR_ID, calenderID)
+
+            /* values.put(CalendarContract.Events.RRULE, "FREQ=DAILY;UNTIL="
+            + dtUntill);*/
+            // Set Period for 1 Hour
+            //  values.put(CalendarContract.Events.DURATION, "+P1H");
+            values.put(CalendarContract.Events.HAS_ALARM, 1)
+
+            // Insert event to calendar
+            val uri = cr?.insert(CalendarContract.Events.CONTENT_URI, values)
+            val eventID = uri?.lastPathSegment?.toLong()
+            Log.e("eventId", eventID.toString())
+            val dStart = (eventData.startDate + " " + eventData.startTime).toDate(Appconstant.DATE_FORMAT_CALENDER_SYNC)
+            val dReminder = eventData.reminderTime.orEmpty().toDate(Appconstant.DATE_FORMAT_CALENDER_SYNC)
+
+            val diff = dStart.time.orZero() - dReminder.time.orZero()
+            val seconds = diff / 1000
+            val minutes = seconds / 60
+            @Suppress("UNUSED_VARIABLE") val hours = minutes / 60
+
+            val reminderUriString = "content://com.android.calendar/reminders" //
+            val reminderValues = ContentValues()
+            reminderValues.put("event_id", eventID)
+            reminderValues.put("minutes", minutes) // Default value
+            //set time in min which occur before event start
+            reminderValues.put("method", 1) // Alert Methods: Default(0),
+            // Alert(1), Email(2),SMS(3)
+            try {
+                @Suppress("UNUSED_VARIABLE") val reminderUri = cr?.insert(Uri.parse(reminderUriString), reminderValues)
+            } catch (e: Exception) {
+                Log.e("exception", e.message.toString())
+                return "fail"
+            }
+
+            val calenderEventsList = ArrayList<String>()
+            calenderEventsList.addAll(this.getEventIdFromSharedPreferences("eventIds").orEmpty())
+            if (calenderEventsList.isEmpty() || (!calenderEventsList.contains(eventID.toString()))) {
+                calenderEventsList.add("" + eventID)
+            }
+            this.setEventIDListToSharedPreferences("eventIds", calenderEventsList)
+        }
+        return "success"
+    } else {
+        return "fail"
+    }
+}
+//endregion
+
+private fun getCalendarId(context: Context): Long? {
+    runCatching {
+        val projection = arrayOf(CalendarContract.Calendars._ID, CalendarContract.Calendars.CALENDAR_DISPLAY_NAME)
+        var calCursor = context.contentResolver.query(CalendarContract.Calendars.CONTENT_URI, projection, CalendarContract.Calendars.VISIBLE + " = 1 AND " + CalendarContract.Calendars.IS_PRIMARY + "=1", null, CalendarContract.Calendars._ID + " ASC")
+        if (calCursor != null && calCursor.count <= 0) {
+            calCursor = context.contentResolver.query(CalendarContract.Calendars.CONTENT_URI, projection, CalendarContract.Calendars.VISIBLE + " = 1", null, CalendarContract.Calendars._ID + " ASC")
+        }
+        if (calCursor != null) {
+            if (calCursor.moveToFirst()) {
+                val calID: String
+                val idCol = calCursor.getColumnIndex(projection[0])
+                calID = calCursor.getString(idCol)
+
+                calCursor.close()
+                return calID.toLong()
+            }
+        } else {
+            return null
+        }
+    }.onFailure {
+        return null
+    }
+    return null
+}
+
+fun startWorkManagerForCalendarSync(model: StaffCalendarEventData?) {
+    val workManager = WorkManager.getInstance(App.getApplicationContext())
+
+    val bundleWork = OneTimeWorkRequest.Builder(CalendarSyncWorker::class.java)
+    val data = Data.Builder()
+    data.putString("singleSlotCalendarSync", Gson().toJson(model))
+    bundleWork.setInputData(data.build())
+
+    workManager.enqueue(bundleWork.build())
+}
+
+fun TextView.disableCopyPaste() {
+    isLongClickable = false
+    setTextIsSelectable(false)
+    customSelectionActionModeCallback = object : ActionMode.Callback {
+        override fun onCreateActionMode(mode: ActionMode?, menu: Menu?): Boolean {
+            return false
+        }
+
+        override fun onPrepareActionMode(mode: ActionMode?, menu: Menu?): Boolean {
+            return false
+        }
+
+        override fun onActionItemClicked(mode: ActionMode?, item: MenuItem?): Boolean {
+            return false
+        }
+
+        override fun onDestroyActionMode(mode: ActionMode?) {
+
+        }
+    }
+}
+
+//region for receive attachment from other application & save to temp directory & then delete it
+fun Uri.copyFileToCache(context: Context): String? {
+    var inputStream: InputStream? = null
+    var output: FileOutputStream? = null
+    var totalLen = 0
+    var f: File?
+
+    try {
+        val name: String? = fixFileName(this.getFileNameFromUri().orEmpty())
+        f = context.getSharingDirectory()
+        f.mkdirs()
+        f = File(f, name.orEmpty())
+        inputStream = App.getApplicationContext().contentResolver.openInputStream(this)
+        /*if (inputStream is FileInputStream) {
+            try {
+                val getInt = FileDescriptor::class.java.getDeclaredMethod("getInt$")
+                val fdint = getInt.invoke(inputStream.fd) as Int
+            } catch (e: Throwable) {
+                Log.e("Throwable", e.localizedMessage.orEmpty())
+            }
+        }*/
+        output = FileOutputStream(f)
+        val buffer = ByteArray(1024 * 20)
+        var len: Int
+        while (inputStream!!.read(buffer).also { len = it } != -1) {
+            output.write(buffer, 0, len)
+            totalLen += len
+        }
+        return f.absolutePath
+    } catch (e: java.lang.Exception) {
+        Log.e("Exception", e.localizedMessage.orEmpty())
+        return null
+    } finally {
+        try {
+            inputStream?.close()
+        } catch (e2: java.lang.Exception) {
+            Log.e("Exception", e2.localizedMessage.orEmpty())
+        }
+        try {
+            output?.close()
+        } catch (e2: java.lang.Exception) {
+            Log.e("Exception", e2.localizedMessage.orEmpty())
+        }
+    }
+}
+
+fun File.deleteFileFromCache() {
+    try {
+        if (this.exists()) this.delete()
+    } catch (e: java.lang.Exception) {
+
+    }
+}
+
+private fun fixFileName(fileName: String?): String? {
+    var fileName1 = fileName
+    if (fileName1 != null) {
+        fileName1 = fileName?.replace("[\u0001-\u001f<>\u202E:\"/\\\\|?*\u007f]+".toRegex(), "")?.trim { it <= ' ' }
+    }
+    return fileName1
+}
+
+fun Context.getSharingDirectory(): File {
+    return File(getExternalFilesDir(null), "sharing/")
+}
+
+fun isValidURL(url: String?): Boolean {
+    /* Try creating a valid URL */
+    return try {
+        URL(url).toURI()
+        true
+    } // If there was an Exception
+    // while creating URL object
+    catch (e: Exception) {
+        false
+    }
+}
+
+fun getRound(input: Double): String {
+    return String.format(Locale.ENGLISH, "%.2f", input)
+}
+//endregion
+
+fun EditText.makeEditTextNumberOnly() {
+    this.inputType = InputType.TYPE_CLASS_NUMBER
+    this.transformationMethod = NumericKeyBoardTransformationMethod()
+}
+
+private class NumericKeyBoardTransformationMethod : PasswordTransformationMethod() {
+    override fun getTransformation(source: CharSequence, view: View?): CharSequence {
+        return source
+    }
+}
+
+fun getUserProfileCall(context: Context, callBack: (Boolean, String) -> Unit) {
+    if (context.isInternetAvailable()) {
+        viewModel.getUserProfile().observeForever {
+            when (it.state) {
+                Resource.State.SUCCESS -> {
+                    if (it.data?.isValid(context).orFalse()) {
+                        it.data?.data?.let { profile ->
+                            App.needGetUserProfile = false
+                            AppPref.nursingUser = profile
+                            if (AppPref.nursingType == Helper.STAFF) {
+                                context.saveStaffProfilePhoto(profile.staffData?.get(0)?.imageUrl.orEmpty())
+                            }
+                            callBack(true, "")
+                        }
+                    } else {
+                        var strMsg = ""
+                        it?.data?.message?.let { message ->
+                            strMsg = message
+                        }
+                        callBack(false, strMsg)
+                    }
+                }
+                Resource.State.LOADING, Resource.State.LOADING_MORE -> {
+                }
+                Resource.State.ERROR -> {
+                    callBack(false, context.getString(R.string.something_went_wrong))
+                }
+                Resource.State.NONE -> {}
+            }
+
+        }
+
+    } else {
+        callBack(false, "")
+    }
+}
+
+@Suppress("DEPRECATION")
+fun getFilePathFromContentResolver(context: Context, uri: Uri): String? {
+    try {
+        context.contentResolver.query(uri, arrayOf(MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.DATA), null, null, null)?.let { cursor ->
+            cursor.moveToFirst()
+
+            if (cursor.count > 0) {
+                val columnIndex = cursor.getColumnIndex(MediaStore.Images.Media.DATA)
+                var path: String? = null
+                if (columnIndex > 0) {
+                    path = cursor.getString(columnIndex)
+                }
+                cursor.close()
+                return path
+            }
+            cursor.close()
+            return null
+
+            /*val path = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA))
+            cursor.close()
+            return path*/
+        }
+    } catch (e: Exception) {
+        Log.w("Exception", e.message ?: "")
+    }
+    return null
+}
+
+fun Context.saveStaffProfilePhoto(url: String) {
+    var f = this.getSharingDirectory()
+
+    Glide.with(App.getApplicationContext()).asBitmap().load(url).into(object : CustomTarget<Bitmap?>() {
+        override fun onResourceReady(bitmap: Bitmap, transition: Transition<in Bitmap?>?) {
+
+            var output: FileOutputStream? = null
+            try {
+                f.mkdirs()
+                f = File(f, "staffProfileImage.jpg")
+
+                val bos = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 100, bos)
+                val bitmapData = bos.toByteArray()
+
+                output = FileOutputStream(f)
+                output.write(bitmapData)
+                output.flush()
+                output.close()
+
+
+            } catch (e: java.lang.Exception) {
+                Log.e("Exception", e.localizedMessage.orEmpty())
+
+            } finally {
+                try {
+                    output?.flush()
+                    output?.close()
+                } catch (e2: java.lang.Exception) {
+                    Log.e("Exception", e2.localizedMessage.orEmpty())
+                }
+            }
+
+        }
+
+        override fun onLoadCleared(placeholder: Drawable?) {}
+    })
+
+
+}
+
+fun SHA256(text: String): String {
+    val resultString: String
+    val md = MessageDigest.getInstance("SHA-256")
+    md.update(text.toByteArray(StandardCharsets.UTF_8))
+    val digest = md.digest()
+    val result = java.lang.StringBuilder()
+    for (b in digest) {
+        result.append(String.format("%02x", b)) //convert to hex
+    }
+    resultString = result.toString()
+
+    return resultString
+}
